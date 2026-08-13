@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <title>Missão Robô — Escape do Labirinto</title>
+  <style>
+    :root {
+      --navy: #07111f;
+      --panel: #0e1d31;
+      --line: #29425f;
+      --text: #f5f8fc;
+      --muted: #9fb1c6;
+      --cyan: #44d7ff;
+      --blue: #3984ff;
+      --green: #35e59a;
+      --yellow: #ffd166;
+      --red: #ff6475;
+      --cell: min(10.6vw, 60px);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Inter, ui-rounded, "Segoe UI", Arial, sans-serif;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(57, 132, 255, .19), transparent 34rem),
+        radial-gradient(circle at 100% 80%, rgba(53, 229, 154, .10), transparent 30rem),
+        var(--navy);
+    }
+
+    button { font: inherit; }
+
+    .app {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: max(14px, env(safe-area-inset-top)) 14px max(22px, env(safe-area-inset-bottom));
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 46px;
+      height: 46px;
+      border: 1px solid rgba(68,215,255,.45);
+      border-radius: 14px;
+      background: linear-gradient(145deg, rgba(68,215,255,.18), rgba(57,132,255,.18));
+      box-shadow: 0 0 26px rgba(68,215,255,.12);
+      font-size: 26px;
+    }
+    .eyebrow { margin: 0 0 2px; color: var(--cyan); font-size: 11px; font-weight: 800; letter-spacing: .17em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(20px, 4vw, 30px); line-height: 1.05; letter-spacing: -.04em; }
+    .level-pill {
+      flex: 0 0 auto;
+      padding: 9px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(14,29,49,.82);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .level-pill strong { color: var(--yellow); }
+
+    .progress { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 14px; }
+    .progress-step { height: 5px; border-radius: 999px; background: #1c3049; overflow: hidden; }
+    .progress-step::after { content: ""; display: block; width: 0; height: 100%; background: linear-gradient(90deg, var(--blue), var(--cyan)); transition: width .35s ease; }
+    .progress-step.done::after, .progress-step.active::after { width: 100%; }
+    .progress-step.active::after { animation: pulsebar 1.4s ease-in-out infinite alternate; }
+    @keyframes pulsebar { to { opacity: .58; } }
+
+    .workspace { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(340px, .9fr); gap: 14px; }
+    .card {
+      border: 1px solid rgba(69,100,135,.55);
+      border-radius: 22px;
+      background: linear-gradient(165deg, rgba(20,40,66,.96), rgba(10,23,40,.97));
+      box-shadow: 0 18px 55px rgba(0,0,0,.22);
+    }
+
+    .board-card { padding: 18px; }
+    .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .card-head h2 { margin: 0 0 4px; font-size: 17px; }
+    .card-head p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
+    .legend { display: flex; gap: 9px; flex-wrap: wrap; justify-content: flex-end; color: var(--muted); font-size: 11px; }
+    .legend span { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+
+    .board-wrap {
+      display: grid;
+      place-items: center;
+      min-height: 390px;
+      padding: 14px;
+      border: 1px solid rgba(57,132,255,.2);
+      border-radius: 17px;
+      background:
+        linear-gradient(rgba(57,132,255,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(57,132,255,.045) 1px, transparent 1px),
+        rgba(5,14,26,.56);
+      background-size: 22px 22px;
+      overflow: hidden;
+    }
+
+    .board {
+      display: grid;
+      gap: 4px;
+      padding: 6px;
+      border: 1px solid #2a4665;
+      border-radius: 13px;
+      background: #0b1829;
+      box-shadow: 0 12px 32px rgba(0,0,0,.28);
+    }
+    .cell {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: var(--cell);
+      aspect-ratio: 1;
+      border: 1px solid #243b56;
+      border-radius: 9px;
+      background: #12263e;
+      font-size: calc(var(--cell) * .44);
+      transition: transform .2s, background .2s, box-shadow .2s;
+    }
+    .cell.wall { border-color: #36485c; background: repeating-linear-gradient(135deg, #24364a 0 7px, #2c4056 7px 14px); }
+    .cell.goal { border-color: rgba(53,229,154,.62); background: rgba(53,229,154,.13); box-shadow: inset 0 0 16px rgba(53,229,154,.09); }
+    .cell.start { border-color: rgba(68,215,255,.45); }
+    .cell.danger { border-color: rgba(255,100,117,.38); background: rgba(255,100,117,.09); }
+    .robot {
+      position: relative;
+      z-index: 3;
+      display: grid;
+      place-items: center;
+      width: 76%;
+      aspect-ratio: 1;
+      border: 2px solid #91eaff;
+      border-radius: 13px;
+      background: linear-gradient(145deg, #dff9ff, #44d7ff 55%, #2088cc);
+      box-shadow: 0 0 0 3px rgba(68,215,255,.14), 0 7px 15px rgba(0,0,0,.28);
+      color: #071b2a;
+      font-size: calc(var(--cell) * .35);
+      animation: robotIdle 1.4s ease-in-out infinite alternate;
+    }
+    .robot::before { content: "••"; letter-spacing: 4px; font-weight: 1000; transform: translateX(2px); }
+    .robot::after { content: ""; position: absolute; top: -18%; width: 2px; height: 20%; background: #91eaff; box-shadow: 0 -2px 0 1px #44d7ff; }
+    .robot.moving { animation: robotMove .28s ease; }
+    @keyframes robotIdle { to { transform: translateY(-2px); } }
+    @keyframes robotMove { 50% { transform: scale(.82) rotate(-4deg); } }
+    .cell.hit { animation: hit .36s ease; background: rgba(255,100,117,.32); }
+    @keyframes hit { 30%, 70% { transform: translateX(-5px); } 50%, 90% { transform: translateX(5px); } }
+
+    .side { display: grid; gap: 14px; align-content: start; }
+    .mission-card { padding: 16px 18px; }
+    .mission-label { color: var(--cyan); font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+    .mission-card h2 { margin: 5px 0 4px; font-size: 18px; }
+    .mission-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+    .code-card { padding: 16px; }
+    .section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .section-title h2 { margin: 0; font-size: 15px; }
+    .counter { color: var(--muted); font-size: 11px; font-weight: 800; }
+    .commands { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+    .command-btn {
+      min-height: 58px;
+      border: 1px solid #315378;
+      border-radius: 13px;
+      color: white;
+      background: linear-gradient(180deg, #1d3f65, #152f4e);
+      cursor: pointer;
+      font-weight: 800;
+      transition: transform .12s, border-color .12s, filter .12s;
+      touch-action: manipulation;
+    }
+    .command-btn span { display: block; color: var(--cyan); font-size: 22px; line-height: 1; }
+    .command-btn small { display: block; margin-top: 4px; color: #d9e7f4; font-size: 9px; text-transform: uppercase; }
+    .command-btn:active { transform: scale(.95); }
+    .command-btn:hover { border-color: var(--cyan); filter: brightness(1.1); }
+    .command-btn:disabled, .action:disabled, .text-btn:disabled { opacity: .42; cursor: not-allowed; }
+
+    .program {
+      display: flex;
+      gap: 7px;
+      min-height: 76px;
+      margin-top: 10px;
+      padding: 10px;
+      overflow-x: auto;
+      border: 1px dashed #35516f;
+      border-radius: 13px;
+      background: rgba(4,12,23,.47);
+      scrollbar-color: #35516f transparent;
+    }
+    .program.empty::before { content: "Toque nas setas para criar o algoritmo"; margin: auto; color: #69809a; font-size: 12px; text-align: center; }
+    .instruction {
+      position: relative;
+      flex: 0 0 51px;
+      height: 54px;
+      border: 1px solid #315378;
+      border-radius: 11px;
+      color: #eff9ff;
+      background: #173451;
+      cursor: pointer;
+      font-size: 22px;
+      font-weight: 900;
+      transition: .2s;
+    }
+    .instruction::after { content: attr(data-index); position: absolute; top: 3px; left: 5px; color: #8ba0b8; font-size: 8px; }
+    .instruction.current { border-color: var(--yellow); background: #5a4920; transform: translateY(-3px); box-shadow: 0 5px 15px rgba(255,209,102,.18); }
+    .instruction.used { opacity: .45; }
+
+    .edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 8px; }
+    .text-btn { min-height: 39px; border: 1px solid #304b69; border-radius: 11px; color: #bcd0e4; background: #10243b; cursor: pointer; font-size: 11px; font-weight: 800; }
+
+    .actions { display: grid; grid-template-columns: 1.55fr 1fr; gap: 9px; }
+    .action { min-height: 53px; border: 0; border-radius: 14px; cursor: pointer; font-weight: 900; letter-spacing: .01em; touch-action: manipulation; }
+    .action.primary { color: #052016; background: linear-gradient(135deg, var(--green), #7df3c0); box-shadow: 0 8px 24px rgba(53,229,154,.17); }
+    .action.secondary { border: 1px solid #3d5774; color: #e0ebf5; background: #152940; }
+    .action.stop { color: white; background: linear-gradient(135deg, #ff6475, #d83d55); }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 48px;
+      padding: 10px 13px;
+      border: 1px solid #2b4664;
+      border-radius: 13px;
+      color: #c0d0df;
+      background: rgba(10,24,41,.84);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .status-icon { font-size: 19px; }
+    .status.success { border-color: rgba(53,229,154,.55); color: #aff6d6; background: rgba(53,229,154,.1); }
+    .status.error { border-color: rgba(255,100,117,.55); color: #ffc3ca; background: rgba(255,100,117,.1); }
+    .status.running { border-color: rgba(255,209,102,.5); color: #ffe8a8; }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      place-items: center;
+      padding: 20px;
+      background: rgba(2,8,16,.76);
+      backdrop-filter: blur(8px);
+    }
+    .modal.open { display: grid; }
+    .modal-box {
+      width: min(430px, 100%);
+      padding: 28px;
+      border: 1px solid rgba(68,215,255,.42);
+      border-radius: 25px;
+      background: linear-gradient(160deg, #17314f, #0b1829);
+      box-shadow: 0 28px 90px rgba(0,0,0,.5);
+      text-align: center;
+      animation: modalIn .3s ease;
+    }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(12px) scale(.96); } }
+    .modal-emoji { font-size: 57px; }
+    .modal-box h2 { margin: 12px 0 7px; font-size: 28px; letter-spacing: -.04em; }
+    .modal-box p { margin: 0 0 20px; color: var(--muted); line-height: 1.5; }
+    .modal-box button { width: 100%; min-height: 52px; border: 0; border-radius: 14px; color: #052016; background: var(--green); cursor: pointer; font-weight: 900; }
+
+    @media (max-width: 820px) {
+      :root { --cell: min(13.3vw, 57px); }
+      .workspace { grid-template-columns: 1fr; }
+      .board-wrap { min-height: 330px; }
+    }
+
+    @media (max-width: 470px) {
+      :root { --cell: min(11.8vw, 51px); }
+      .app { padding-inline: 9px; }
+      .brand-mark { width: 40px; height: 40px; font-size: 22px; }
+      .level-pill { padding: 8px 9px; font-size: 10px; }
+      .board-card { padding: 12px 9px; border-radius: 18px; }
+      .card-head { margin-bottom: 9px; }
+      .legend { display: none; }
+      .board-wrap { min-height: 0; padding: 8px 3px; }
+      .board { gap: 3px; padding: 4px; }
+      .cell { border-radius: 7px; }
+      .mission-card { padding: 13px 15px; }
+      .code-card { padding: 13px; }
+      .command-btn { min-height: 54px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">🤖</div>
+        <div>
+          <p class="eyebrow">Aula 6 · Algoritmos</p>
+          <h1>Missão Robô</h1>
+        </div>
+      </div>
+      <div class="level-pill">FASE <strong id="levelNumber">1</strong>/3 · <span id="levelName">FÁCIL</span></div>
+    </header>
+
+    <div class="progress" aria-label="Progresso nas fases">
+      <div class="progress-step active"></div>
+      <div class="progress-step"></div>
+      <div class="progress-step"></div>
+    </div>
+
+    <div class="workspace">
+      <section class="card board-card">
+        <div class="card-head">
+          <div>
+            <h2>Área da missão</h2>
+            <p>Leve o robô até o portal verde.</p>
+          </div>
+          <div class="legend" aria-label="Legenda">
+            <span>🧱 Parede</span><span>💣 Bomba</span><span>🕳️ Buraco</span><span>🌀 Saída</span>
+          </div>
+        </div>
+        <div class="board-wrap">
+          <div id="board" class="board" role="grid" aria-label="Labirinto"></div>
+        </div>
+      </section>
+
+      <aside class="side">
+        <section class="card mission-card">
+          <span class="mission-label">Sua missão</span>
+          <h2 id="missionTitle">Primeiros passos</h2>
+          <p id="missionText">Observe o caminho e crie uma sequência de comandos segura.</p>
+        </section>
+
+        <section class="card code-card">
+          <div class="section-title">
+            <h2>1. Escolha os comandos</h2>
+            <span class="counter"><span id="commandCount">0</span>/<span id="commandLimit">12</span></span>
+          </div>
+          <div class="commands">
+            <button class="command-btn" data-command="up" aria-label="Adicionar comando para cima"><span>↑</span><small>Cima</small></button>
+            <button class="command-btn" data-command="right" aria-label="Adicionar comando para direita"><span>→</span><small>Direita</small></button>
+            <button class="command-btn" data-command="down" aria-label="Adicionar comando para baixo"><span>↓</span><small>Baixo</small></button>
+            <button class="command-btn" data-command="left" aria-label="Adicionar comando para esquerda"><span>←</span><small>Esquerda</small></button>
+          </div>
+
+          <div class="section-title" style="margin-top: 15px; margin-bottom: 0">
+            <h2>2. Seu algoritmo</h2>
+            <span class="counter">toque para remover</span>
+          </div>
+          <div id="program" class="program empty" aria-label="Sequência de comandos"></div>
+          <div class="edit-row">
+            <button id="undoBtn" class="text-btn">↶ APAGAR ÚLTIMO</button>
+            <button id="clearBtn" class="text-btn">✕ LIMPAR TUDO</button>
+          </div>
+        </section>
+
+        <div class="actions">
+          <button id="runBtn" class="action primary">▶ TESTAR ALGORITMO</button>
+          <button id="resetBtn" class="action secondary">↻ REINICIAR</button>
+        </div>
+
+        <div id="status" class="status" role="status" aria-live="polite">
+          <span class="status-icon">💡</span>
+          <span id="statusText">Planeje antes de testar. A ordem dos comandos importa!</span>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-box">
+      <div id="modalEmoji" class="modal-emoji">🎉</div>
+      <h2 id="modalTitle">Missão concluída!</h2>
+      <p id="modalText">Você criou um algoritmo que funciona.</p>
+      <button id="nextBtn">IR PARA A PRÓXIMA FASE →</button>
+    </div>
+  </div>
+
+  <script>
+    const levels = [
+      {
+        name: "FÁCIL", size: 5, limit: 12,
+        title: "Primeiros passos",
+        text: "Crie uma sequência simples. Cuidado: a bomba encerra a missão!",
+        start: [4, 0], goal: [0, 4],
+        walls: [[3,1],[3,2],[1,2],[1,3]],
+        bombs: [[4,3],[2,1]], holes: []
+      },
+      {
+        name: "MÉDIA", size: 6, limit: 16,
+        title: "Rota de segurança",
+        text: "Agora há bombas e buracos. Teste, encontre o erro e tente de novo.",
+        start: [5, 0], goal: [0, 5],
+        walls: [[3,0],[3,1],[4,3],[3,3],[1,2],[1,3],[1,5],[2,5]],
+        bombs: [[2,1],[3,4],[0,0]], holes: [[5,1],[5,4],[4,5],[0,2]]
+      },
+      {
+        name: "DIFÍCIL", size: 7, limit: 22,
+        title: "Desafio do programador",
+        text: "O caminho é estreito e exige precisão. Cada instrução deve estar na ordem certa.",
+        start: [6, 0], goal: [0, 6],
+        walls: [[5,0],[5,2],[4,0],[4,4],[3,0],[3,1],[3,2],[3,4],[3,5],[3,6],[2,1],[2,4],[1,1],[1,3],[1,5],[0,1]],
+        bombs: [[6,2],[6,5],[5,3],[5,6],[4,5],[2,0],[0,0]],
+        holes: [[6,3],[6,6],[5,4],[4,6],[1,0]]
+      }
+    ];
+
+    const arrows = { up: "↑", right: "→", down: "↓", left: "←" };
+    const moves = { up: [-1,0], right: [0,1], down: [1,0], left: [0,-1] };
+    let levelIndex = 0;
+    let program = [];
+    let robot = [...levels[0].start];
+    let running = false;
+    let stopRequested = false;
+
+    const $ = (id) => document.getElementById(id);
+    const board = $("board");
+    const programEl = $("program");
+    const runBtn = $("runBtn");
+    const resetBtn = $("resetBtn");
+    const commandButtons = [...document.querySelectorAll(".command-btn")];
+
+    function same(a, b) { return a[0] === b[0] && a[1] === b[1]; }
+    function has(list, pos) { return list.some(item => same(item, pos)); }
+    function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+    function renderLevel() {
+      const level = levels[levelIndex];
+      robot = [...level.start];
+      program = [];
+      stopRequested = false;
+      $("levelNumber").textContent = levelIndex + 1;
+      $("levelName").textContent = level.name;
+      $("missionTitle").textContent = level.title;
+      $("missionText").textContent = level.text;
+      $("commandLimit").textContent = level.limit;
+      document.querySelectorAll(".progress-step").forEach((el, i) => {
+        el.className = "progress-step" + (i < levelIndex ? " done" : i === levelIndex ? " active" : "");
+      });
+      renderBoard();
+      renderProgram();
+      setStatus("💡", "Planeje antes de testar. A ordem dos comandos importa!");
+      setRunning(false);
+    }
+
+    function renderBoard(hitPosition = null) {
+      const level = levels[levelIndex];
+      board.innerHTML = "";
+      board.style.gridTemplateColumns = `repeat(${level.size}, var(--cell))`;
+
+      for (let row = 0; row < level.size; row++) {
+        for (let col = 0; col < level.size; col++) {
+          const pos = [row, col];
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          cell.setAttribute("role", "gridcell");
+          if (has(level.walls, pos)) { cell.classList.add("wall"); cell.textContent = "🧱"; }
+          if (has(level.bombs, pos)) { cell.classList.add("danger"); cell.textContent = "💣"; }
+          if (has(level.holes, pos)) { cell.classList.add("danger"); cell.textContent = "🕳️"; }
+          if (same(level.goal, pos)) { cell.classList.add("goal"); cell.textContent = "🌀"; }
+          if (same(level.start, pos)) cell.classList.add("start");
+          if (same(robot, pos)) {
+            const bot = document.createElement("div");
+            bot.className = running ? "robot moving" : "robot";
+            bot.setAttribute("aria-label", "Robô");
+            cell.appendChild(bot);
+          }
+          if (hitPosition && same(hitPosition, pos)) cell.classList.add("hit");
+          board.appendChild(cell);
+        }
+      }
+    }
+
+    function renderProgram(current = -1) {
+      programEl.innerHTML = "";
+      programEl.classList.toggle("empty", program.length === 0);
+      program.forEach((command, index) => {
+        const button = document.createElement("button");
+        button.className = "instruction" + (index === current ? " current" : index < current ? " used" : "");
+        button.textContent = arrows[command];
+        button.dataset.index = index + 1;
+        button.title = "Remover este comando";
+        button.disabled = running;
+        button.addEventListener("click", () => {
+          if (!running) { program.splice(index, 1); renderProgram(); }
+        });
+        programEl.appendChild(button);
+      });
+      $("commandCount").textContent = program.length;
+      if (current >= 0) programEl.children[current]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      updateControls();
+    }
+
+    function addCommand(command) {
+      const level = levels[levelIndex];
+      if (running) return;
+      if (program.length >= level.limit) {
+        setStatus("⚠️", `Limite de ${level.limit} comandos atingido. Remova algum para continuar.`, "error");
+        return;
+      }
+      program.push(command);
+      renderProgram();
+      setStatus("🧩", `${program.length} comando${program.length === 1 ? "" : "s"} no algoritmo.`);
+    }
+
+    function updateControls() {
+      const full = program.length >= levels[levelIndex].limit;
+      commandButtons.forEach(btn => btn.disabled = running || full);
+      $("undoBtn").disabled = running || program.length === 0;
+      $("clearBtn").disabled = running || program.length === 0;
+      runBtn.disabled = !running && program.length === 0;
+      resetBtn.disabled = running;
+    }
+
+    function setRunning(value) {
+      running = value;
+      runBtn.textContent = value ? "■ PARAR EXECUÇÃO" : "▶ TESTAR ALGORITMO";
+      runBtn.className = value ? "action stop" : "action primary";
+      updateControls();
+    }
+
+    function setStatus(icon, text, type = "") {
+      $("status").className = "status" + (type ? ` ${type}` : "");
+      $("status").querySelector(".status-icon").textContent = icon;
+      $("statusText").textContent = text;
+    }
+
+    async function runProgram() {
+      if (running) { stopRequested = true; return; }
+      if (!program.length) return;
+
+      const level = levels[levelIndex];
+      robot = [...level.start];
+      stopRequested = false;
+      setRunning(true);
+      renderBoard();
+      setStatus("⚙️", "Executando o algoritmo passo a passo...", "running");
+      await sleep(450);
+
+      for (let i = 0; i < program.length; i++) {
+        if (stopRequested) {
+          setStatus("⏹️", "Execução interrompida. Você pode ajustar o algoritmo.");
+          break;
+        }
+
+        renderProgram(i);
+        const delta = moves[program[i]];
+        const next = [robot[0] + delta[0], robot[1] + delta[1]];
+        const outside = next[0] < 0 || next[0] >= level.size || next[1] < 0 || next[1] >= level.size;
+
+        if (outside || has(level.walls, next)) {
+          renderBoard(outside ? robot : next);
+          setStatus("💥", `Erro no comando ${i + 1}: o robô bateu em uma parede. Depure o algoritmo!`, "error");
+          await sleep(450);
+          break;
+        }
+
+        robot = next;
+        renderBoard();
+        await sleep(430);
+
+        if (has(level.bombs, robot)) {
+          setStatus("💣", `A bomba foi atingida no comando ${i + 1}. Encontre uma rota segura.`, "error");
+          break;
+        }
+        if (has(level.holes, robot)) {
+          setStatus("🕳️", `O robô caiu no buraco no comando ${i + 1}. Corrija a sequência.`, "error");
+          break;
+        }
+        if (same(level.goal, robot)) {
+          renderProgram(i);
+          setStatus("✅", "Algoritmo correto! O robô chegou ao portal.", "success");
+          await sleep(420);
+          showSuccess(i + 1);
+          setRunning(false);
+          return;
+        }
+
+        if (i === program.length - 1) {
+          setStatus("🔎", "Os comandos terminaram antes da saída. Acrescente os próximos passos.", "error");
+        }
+      }
+
+      setRunning(false);
+      renderProgram();
+    }
+
+    function showSuccess(steps) {
+      const isLast = levelIndex === levels.length - 1;
+      $("modalEmoji").textContent = isLast ? "🏆" : "🎉";
+      $("modalTitle").textContent = isLast ? "Programador de labirintos!" : "Missão concluída!";
+      $("modalText").textContent = isLast
+        ? `Você venceu as três fases e resolveu a última com ${steps} comandos.`
+        : `Seu algoritmo funcionou com ${steps} comandos. Prepare-se para um novo desafio.`;
+      $("nextBtn").textContent = isLast ? "JOGAR NOVAMENTE ↻" : "IR PARA A PRÓXIMA FASE →";
+      $("modal").classList.add("open");
+    }
+
+    commandButtons.forEach(button => button.addEventListener("click", () => addCommand(button.dataset.command)));
+    $("undoBtn").addEventListener("click", () => { if (!running) { program.pop(); renderProgram(); } });
+    $("clearBtn").addEventListener("click", () => { if (!running) { program = []; renderProgram(); setStatus("🧹", "Algoritmo limpo. Crie uma nova sequência."); } });
+    resetBtn.addEventListener("click", () => { robot = [...levels[levelIndex].start]; renderBoard(); renderProgram(); setStatus("↻", "Robô voltou ao início. O algoritmo foi mantido."); });
+    runBtn.addEventListener("click", runProgram);
+    $("nextBtn").addEventListener("click", () => {
+      $("modal").classList.remove("open");
+      levelIndex = levelIndex === levels.length - 1 ? 0 : levelIndex + 1;
+      renderLevel();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      const map = { ArrowUp: "up", ArrowRight: "right", ArrowDown: "down", ArrowLeft: "left" };
+      if (map[event.key]) { event.preventDefault(); addCommand(map[event.key]); }
+      if (event.key === "Enter") runProgram();
+      if (event.key === "Backspace" && !running) { program.pop(); renderProgram(); }
+    });
+
+    renderLevel();
+  </script>
+</body>
+</html>
